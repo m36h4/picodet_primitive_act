@@ -33,6 +33,7 @@ from ppdet.modeling.layers import ConvNormLayer
 from .simota_head import OTAVFLHead
 from .gfl_head import Integral, GFLHead
 from ppdet.modeling.necks.csp_pan import DPModule
+from ..custom_activation import PrimitiveHSwish
 
 eps = 1e-9
 
@@ -94,6 +95,7 @@ class PicoFeat(nn.Layer):
         self.share_cls_reg = share_cls_reg
         self.act = act
         self.use_se = use_se
+        self.hswish = PrimitiveHSwish()
         self.cls_convs = []
         self.reg_convs = []
 
@@ -168,7 +170,7 @@ class PicoFeat(nn.Layer):
         if self.act == "leaky_relu":
             x = F.leaky_relu(x)
         elif self.act == "hard_swish":
-            x = F.hardswish(x)
+            x = self.hswish(x)
         elif self.act == "relu6":
             x = F.relu6(x)
         return x

@@ -26,6 +26,7 @@ from paddle.nn.initializer import KaimingNormal
 from ppdet.core.workspace import register, serializable
 from numbers import Integral
 from ..shape_spec import ShapeSpec
+from ..custom_activation import PrimitiveHSwish, PrimitiveHSigmoid
 
 __all__ = ['LCNet']
 
@@ -87,7 +88,7 @@ class ConvBNLayer(nn.Layer):
             weight_attr=ParamAttr(regularizer=L2Decay(0.0)),
             bias_attr=ParamAttr(regularizer=L2Decay(0.0)))
         if act == 'hard_swish':
-            self.act = nn.Hardswish()
+            self.act = PrimitiveHSwish()
         elif act == 'relu6':
             self.act = nn.ReLU6()
 
@@ -175,7 +176,7 @@ class SEModule(nn.Layer):
             kernel_size=1,
             stride=1,
             padding=0)
-        self.hardsigmoid = nn.Hardsigmoid()
+        self.hardsigmoid = PrimitiveHSigmoid()
 
     def forward(self, x):
         identity = x
