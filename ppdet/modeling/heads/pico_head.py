@@ -33,7 +33,7 @@ from ppdet.modeling.layers import ConvNormLayer
 from .simota_head import OTAVFLHead
 from .gfl_head import Integral, GFLHead
 from ppdet.modeling.necks.csp_pan import DPModule
-from ..custom_activation import PrimitiveHSwish
+
 
 eps = 1e-9
 
@@ -95,7 +95,7 @@ class PicoFeat(nn.Layer):
         self.share_cls_reg = share_cls_reg
         self.act = act
         self.use_se = use_se
-        self.hswish = PrimitiveHSwish()
+        self.hswish = nn.Swish()
         self.cls_convs = []
         self.reg_convs = []
 

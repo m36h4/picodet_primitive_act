@@ -9,8 +9,8 @@ pretrain_weights: https://paddle-imagenet-models-name.bj.bcebos.com/dygraph/lege
 weights: 
 find_unused_parameters: True
 use_ema: true
-epoch: 10
-snapshot_epoch: 5
+epoch: 100
+snapshot_epoch: 2
 LCNet:
   scale: 0.75
   feature_maps: [3, 4, 5]
@@ -34,8 +34,8 @@ TrainReader:
   - NormalizeImage: {is_scale: true, mean: [0.485,0.456,0.406], std: [0.229, 0.224,0.225]}
   - Permute: {}
   - PadGT: {}
-  batch_size: 8
-  num_workers: 2
+  batch_size: 64
+  num_workers: 8
 EvalReader:
   sample_transforms:
   - Decode: {}
@@ -45,7 +45,7 @@ EvalReader:
   batch_transforms:
   - PadBatch: {pad_to_stride: 32}
   - PadGT: {}
-  batch_size: 8
+  batch_size: 64
   shuffle: false
 TestReader:
   inputs_def:
@@ -55,12 +55,12 @@ TestReader:
   - LetterboxResize: {target_size: [320, 320], pad_val: 114, interp: 2}
   - NormalizeImage: {is_scale: true, mean: [0.485,0.456,0.406], std: [0.229, 0.224,0.225]}
   - Permute: {}
-  batch_size: 1
+  batch_size: 64
 LearningRate:
   base_lr: 0.02
   schedulers:
   - !CosineDecay
-    max_epochs: 5
+    max_epochs: 100
   - !LinearWarmup
     start_factor: 0.1
     steps: 200
