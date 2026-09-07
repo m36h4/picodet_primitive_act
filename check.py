@@ -1,3 +1,13 @@
+try:
+    batch = np.stack(batch, axis=0)
+except ValueError:
+    print("\n===== COLLATE SHAPE ERROR =====")
+    print("KEY:", key)
+    for i, x in enumerate(batch):
+        print(" item", i, "shape:", getattr(x, "shape", None), "type:", type(x))
+    print("================================\n")
+    raise
+
 cd /home/eng_megha/paddledetection
 
 python - <<'PY'
