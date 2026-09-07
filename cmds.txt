@@ -1,0 +1,33 @@
+python - <<'PY'
+import json
+
+f = "output_nikon_eval/bbox.json"
+
+with open(f) as x:
+    p = json.load(x)
+
+print("Number predictions:", len(p))
+print("First prediction:")
+print(p[0])
+
+print("\nScore range:")
+scores = [x["score"] for x in p]
+print("min:", min(scores))
+print("max:", max(scores))
+
+print("\nFirst 10 scores:")
+print(sorted(scores, reverse=True)[:10])
+PY
+python - <<'PY'
+import json
+
+f = "dataset/labels/val.json"
+
+with open(f) as x:
+    d = json.load(x)
+
+print("Images:", len(d["images"]))
+print("Annotations:", len(d["annotations"]))
+print("First image:", d["images"][0])
+print("First annotation:", d["annotations"][0])
+PY
