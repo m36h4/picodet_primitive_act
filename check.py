@@ -1,12 +1,29 @@
+cd /home/eng_megha/paddledetection
+
 python - <<'PY'
-import paddle
+import json, os
 
-print("Paddle version :", paddle.__version__)
-print("Compiled CUDA  :", paddle.is_compiled_with_cuda())
-print("CUDA version   :", paddle.version.cuda())
-print("Device         :", paddle.device.get_device())
+p = "dataset/labels/val.json"
 
-x = paddle.randn([2, 3, 320, 320])
-y = x * 2
-print("CUDA tensor test:", y.shape)
+with open(p, "r") as f:
+    d = json.load(f)
+
+imgs = {x["id"]: x for x in d["images"]}
+
+for ann in d["annotations"]:
+    if ann["image_id"] not in imgs:
+        print("BAD annotation image_id:", ann["image_id"])
+        continue
+
+print("Images:", len(d["images"]))
+print("Annotations:", len(d["annotations"]))
+print("Categories:", d["categories"])
+
+# Show images that have no annotations
+ann_ids = {a["image_id"] for a in d["annotations"]}
+no_ann = [x for x in d["images"] if x["id"] not in ann_ids]
+
+print("Images with no annotations:", len(no_ann))
+for x in no_ann[:20]:
+    print(x["id"], x["file_name"], x.get("width"), x.get("height"))
 PY
