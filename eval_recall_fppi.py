@@ -30,37 +30,129 @@ def iou(a, b):
     return inter / union if union > 0 else 0
 
 
+# ---------------------------------------------------------
+# Load files
+# ---------------------------------------------------------
+
 with open(GT_FILE) as f:
     gt_data = json.load(f)
 
 with open(PRED_FILE) as f:
     predictions = json.load(f)
 
+
+# ---------------------------------------------------------
+# Build GT dictionary
+# ---------------------------------------------------------
+
 gt = defaultdict(list)
 
 for ann in gt_data["annotations"]:
     gt[ann["image_id"]].append(ann["bbox"])
 
-gt_ids = sorted(im["id"] for im in gt_data["images"])
 
-print("Images      :", len(gt_data["images"]))
-print("GT boxes    :", len(gt_data["annotations"]))
-print("Predictions :", len(predictions))
+# ---------------------------------------------------------
+# IMPORTANT:
+# PaddleDetection prediction image_id is the inference
+# order: 0, 1, 2, ...
+#
+# val.json has its own COCO image IDs.
+# Map prediction index -> actual COCO image ID
+# using the SAME JSON image order.
+# ---------------------------------------------------------
 
-# PaddleDetection infer.py uses 0-based image IDs.
-# Your COCO GT uses 1-based IDs.
-pred_ids = sorted(set(p["image_id"] for p in predictions))
+ordered_gt_ids = [
+    img["id"]
+    for img in gt_data["images"]
+]
 
-print("GT ID range :", min(gt_ids), "to", max(gt_ids))
-print("Pred ID range:", min(pred_ids), "to", max(pred_ids))
 
-if min(pred_ids) == 0 and min(gt_ids) == 1:
-    print("\nMapping prediction image_id -> GT image_id: +1")
-    for p in predictions:
-        p["image_id"] += 1
+# ---------------------------------------------------------
+# Information
+# ---------------------------------------------------------
+
+print("Images       :", len(gt_data["images"]))
+print("GT boxes     :", len(gt_data["annotations"]))
+print("Predictions  :", len(predictions))
+
+gt_ids = sorted(ordered_gt_ids)
+
+pred_ids_before = sorted(
+    set(p["image_id"] for p in predictions)
+)
+
+print("GT ID range  :", min(gt_ids), "to", max(gt_ids))
+print(
+    "Pred ID range:",
+    min(pred_ids_before),
+    "to",
+    max(pred_ids_before)
+)
+
+
+# ---------------------------------------------------------
+# Map prediction image IDs
+# ---------------------------------------------------------
+
+mapped_predictions = []
+
+invalid_prediction_ids = 0
+
+for p in predictions:
+
+    pred_index = int(p["image_id"])
+
+    if pred_index < 0 or pred_index >= len(ordered_gt_ids):
+        invalid_prediction_ids += 1
+        continue
+
+    new_p = p.copy()
+
+    new_p["image_id"] = ordered_gt_ids[pred_index]
+
+    mapped_predictions.append(new_p)
+
+
+predictions = mapped_predictions
+
+
+print()
+print(
+    "Mapping prediction image_id -> GT image_id:"
+)
+print(
+    "JSON-order mapping: prediction index -> val.json image ID"
+)
+
+if invalid_prediction_ids > 0:
+    print(
+        "Invalid prediction IDs skipped:",
+        invalid_prediction_ids
+    )
 
 print()
 
+
+# ---------------------------------------------------------
+# Verify mapping with first few predictions
+# ---------------------------------------------------------
+
+print("Mapping verification:")
+
+for p in predictions[:5]:
+
+    print(
+        "prediction image_id -> GT image_id:",
+        p["image_id"]
+    )
+
+print()
+
+
+# ---------------------------------------------------------
+# Nikon metric
+# Recall @ FPPI <= 0.05
+# ---------------------------------------------------------
 
 for iou_threshold in IOU_THRESHOLDS:
 
@@ -71,71 +163,176 @@ for iou_threshold in IOU_THRESHOLDS:
         preds_by_image = defaultdict(list)
 
         for p in predictions:
+
             if p["score"] >= conf:
-                preds_by_image[p["image_id"]].append(p)
+
+                preds_by_image[
+                    p["image_id"]
+                ].append(p)
+
 
         tp = 0
         fp = 0
         fn = 0
 
+
+        # -------------------------------------------------
+        # Evaluate every GT image
+        # -------------------------------------------------
+
         for image_id, gt_boxes in gt.items():
 
             preds = sorted(
-                preds_by_image.get(image_id, []),
+                preds_by_image.get(
+                    image_id,
+                    []
+                ),
                 key=lambda x: x["score"],
                 reverse=True
             )
 
             matched = set()
 
+
             for p in preds:
 
                 best_iou = 0
                 best_gt = -1
+
 
                 for i, gt_box in enumerate(gt_boxes):
 
                     if i in matched:
                         continue
 
-                    v = iou(p["bbox"], gt_box)
+                    v = iou(
+                        p["bbox"],
+                        gt_box
+                    )
 
                     if v > best_iou:
+
                         best_iou = v
                         best_gt = i
 
+
                 if best_iou >= iou_threshold:
+
                     tp += 1
                     matched.add(best_gt)
+
                 else:
+
                     fp += 1
 
-            fn += len(gt_boxes) - len(matched)
 
-        recall = tp / (tp + fn) if (tp + fn) else 0
-        fppi = fp / len(gt_data["images"])
-        precision = tp / (tp + fp) if (tp + fp) else 0
+            fn += (
+                len(gt_boxes)
+                - len(matched)
+            )
+
+
+        # -------------------------------------------------
+        # Metrics
+        # -------------------------------------------------
+
+        recall = (
+            tp / (tp + fn)
+            if (tp + fn)
+            else 0
+        )
+
+        fppi = (
+            fp / len(gt_data["images"])
+        )
+
+        precision = (
+            tp / (tp + fp)
+            if (tp + fp)
+            else 0
+        )
+
+
+        # -------------------------------------------------
+        # Nikon constraint
+        # -------------------------------------------------
 
         if fppi <= FPPI_LIMIT:
-            result = (recall, fppi, precision, conf, tp, fp, fn)
 
-            if best is None or recall > best[0]:
+            result = (
+                recall,
+                fppi,
+                precision,
+                conf,
+                tp,
+                fp,
+                fn
+            )
+
+            if (
+                best is None
+                or recall > best[0]
+            ):
+
                 best = result
+
+
+    # -----------------------------------------------------
+    # Print result
+    # -----------------------------------------------------
 
     print("=" * 60)
     print("IoU threshold :", iou_threshold)
     print("FPPI limit    :", FPPI_LIMIT)
     print("=" * 60)
 
-    if best:
-        recall, fppi, precision, conf, tp, fp, fn = best
 
-        print(f"Confidence    : {conf:.2f}")
-        print(f"Recall        : {recall:.4f} ({recall*100:.2f}%)")
-        print(f"FPPI          : {fppi:.5f}")
-        print(f"Precision     : {precision:.4f}")
-        print(f"TP            : {tp}")
-        print(f"FP            : {fp}")
-        print(f"FN            : {fn}")
+    if best:
+
+        (
+            recall,
+            fppi,
+            precision,
+            conf,
+            tp,
+            fp,
+            fn
+        ) = best
+
+        print(
+            f"Confidence    : {conf:.2f}"
+        )
+
+        print(
+            f"Recall        : {recall:.4f} "
+            f"({recall * 100:.2f}%)"
+        )
+
+        print(
+            f"FPPI          : {fppi:.5f}"
+        )
+
+        print(
+            f"Precision     : {precision:.4f}"
+        )
+
+        print(
+            f"TP            : {tp}"
+        )
+
+        print(
+            f"FP            : {fp}"
+        )
+
+        print(
+            f"FN            : {fn}"
+        )
+
     else:
-        print("No threshold satisfies FPPI <= 0.05")
+
+        print(
+            "No threshold satisfies "
+            "FPPI <= 0.05"
+        )
+
+    print()
