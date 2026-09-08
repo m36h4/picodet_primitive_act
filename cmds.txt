@@ -45,3 +45,20 @@ for x in gt["images"][:10]:
 print("\nPrediction first 20 image IDs:")
 print([x["image_id"] for x in pred[:20]])
 PY
+
+
+python - <<'PY'
+import json
+import os
+
+gt = json.load(open("dataset/labels/val.json"))
+
+images = sorted(
+    gt["images"],
+    key=lambda x: os.path.basename(x["file_name"])
+)
+
+print("First 20 images in sorted order:")
+for i, x in enumerate(images[:20]):
+    print(i, "-> GT ID", x["id"], "->", x["file_name"])
+PY
