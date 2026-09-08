@@ -31,3 +31,17 @@ print("Annotations:", len(d["annotations"]))
 print("First image:", d["images"][0])
 print("First annotation:", d["annotations"][0])
 PY
+
+python - <<'PY'
+import json
+
+gt = json.load(open("dataset/labels/val.json"))
+pred = json.load(open("output_nikon_eval/bbox.json"))
+
+print("GT first 10:")
+for x in gt["images"][:10]:
+    print(x["id"], x["file_name"])
+
+print("\nPrediction first 20 image IDs:")
+print([x["image_id"] for x in pred[:20]])
+PY
