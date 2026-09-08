@@ -62,3 +62,24 @@ print("First 20 images in sorted order:")
 for i, x in enumerate(images[:20]):
     print(i, "-> GT ID", x["id"], "->", x["file_name"])
 PY
+
+
+python - <<'PY'
+import json
+import os
+
+gt = json.load(open("dataset/labels/val.json"))
+
+print("COCO JSON order:")
+for i, x in enumerate(gt["images"][:20]):
+    print(i, "-> GT ID", x["id"], "->", x["file_name"])
+
+print("\nFilesystem order:")
+files = sorted([
+    f for f in os.listdir("dataset/images/val")
+    if f.lower().endswith((".jpg",".jpeg",".png"))
+])
+
+for i, f in enumerate(files[:20]):
+    print(i, "->", f)
+PY
