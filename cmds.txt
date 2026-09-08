@@ -83,3 +83,15 @@ files = sorted([
 for i, f in enumerate(files[:20]):
     print(i, "->", f)
 PY
+
+python - <<'PY'
+import json
+
+d = json.load(open("dataset/labels/val.json"))
+
+with open("val_infer_list.txt", "w") as f:
+    for x in d["images"]:
+        f.write(x["file_name"] + "\n")
+
+print("Wrote", len(d["images"]), "images")
+PY
