@@ -54,6 +54,12 @@ def main():
     parser.add_argument(
         '--shape', nargs=2, type=int, metavar=('H', 'W'), default=None,
         help='input H W; defaults to TestReader.inputs_def.image_shape[-2:] from config')
+    parser.add_argument(
+        '--eval-size', nargs=2, type=int, metavar=('H', 'W'), default=None,
+        help="override PicoHeadV2.eval_size directly (must match --shape, or you'll "
+             "hit the same anchor broadcast mismatch this override exists to avoid). "
+             "Use this instead of -o for nested keys, since -o here only does flat "
+             "key=value splitting and can't reach PicoHeadV2.eval_size.")
     args = parser.parse_args()
 
     cfg = load_config(args.config)
@@ -76,6 +82,16 @@ def main():
             sys.exit(1)
 
     print(f"Using input shape: 1x3x{h}x{w}")
+
+    if args.eval_size:
+        eh, ew = args.eval_size
+        if 'PicoHeadV2' in cfg:
+            cfg['PicoHeadV2']['eval_size'] = [eh, ew]
+        print(f"Overriding PicoHeadV2.eval_size -> [{eh}, {ew}]")
+        if [eh, ew] != [h, w]:
+            print(f"WARNING: eval_size [{eh}, {ew}] != --shape [{h}, {w}] -- "
+                  f"this WILL reproduce the anchor broadcast mismatch. "
+                  f"Set both the same.")
 
     model = create(cfg.architecture)
     model.eval()
