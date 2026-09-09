@@ -1,0 +1,76 @@
+_BASE_: [
+  '../datasets/my_coco.yml',
+  '../runtime.yml',
+  '_base_/picodet_v2.yml',
+  '_base_/optimizer_300e.yml',
+  '_base_/picodet_320_reader.yml',
+]
+
+pretrain_weights: https://paddle-imagenet-models-name.bj.bcebos.com/dygraph/legendary_models/PPLCNet_x0_75_pretrained.pdparams
+
+weights:
+find_unused_parameters: True
+use_ema: true
+
+epoch: 100
+snapshot_epoch: 2
+
+LCNet:
+  scale: 0.75
+  feature_maps: [3, 4, 5]
+
+LCPAN:
+  out_channels: 96
+
+PicoHeadV2:
+  conv_feat:
+    name: PicoFeat
+    feat_in: 96
+    feat_out: 96
+    num_convs: 2
+    num_fpn_stride: 4
+    norm_type: bn
+    share_cls_reg: True
+    use_se: True
+  feat_in_chan: 96
+
+LearningRate:
+  base_lr: 0.02
+  schedulers:
+  - !CosineDecay
+    max_epochs: 100
+  - !LinearWarmup
+    start_factor: 0.1
+    steps: 200
+
+TrainReader:
+  sample_transforms:
+    - Decode: {}
+    - Resize: {target_size: [320, 480], keep_ratio: True, interp: 2}
+    - Pad: {size: [320, 480], pad_mode: 1, fill_value: [114, 114, 114]}
+    - RandomFlip: {prob: 0.5}
+  batch_transforms:
+    - NormalizeImage: {is_scale: true, mean: [0.485, 0.456, 0.406], std: [0.229, 0.224, 0.225]}
+    - Permute: {}
+    - PadGT: {}
+  batch_size: 64
+
+EvalReader:
+  sample_transforms:
+    - Decode: {}
+    - Resize: {target_size: [320, 480], keep_ratio: True, interp: 2}
+    - Pad: {size: [320, 480], pad_mode: 1, fill_value: [114, 114, 114]}
+    - NormalizeImage: {is_scale: true, mean: [0.485, 0.456, 0.406], std: [0.229, 0.224, 0.225]}
+    - Permute: {}
+  batch_size: 1
+
+TestReader:
+  inputs_def:
+    image_shape: [1, 3, 320, 480]
+  sample_transforms:
+    - Decode: {}
+    - Resize: {target_size: [320, 480], keep_ratio: True, interp: 2}
+    - Pad: {size: [320, 480], pad_mode: 1, fill_value: [114, 114, 114]}
+    - NormalizeImage: {is_scale: true, mean: [0.485, 0.456, 0.406], std: [0.229, 0.224, 0.225]}
+    - Permute: {}
+  batch_size: 1
